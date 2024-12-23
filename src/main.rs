@@ -14,10 +14,25 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Create { name: String, email: String },
+    /// Create a new git user
+    Create {
+        /// git user name
+        name: String,
+        /// git user email
+        email: String,
+    },
+    /// List users
     List,
-    Su { name: String },
-    Delete { name: String },
+    /// switch user for current git dir
+    Su {
+        /// git user name
+        name: String,
+    },
+    /// Delete a exists git user from db
+    Delete {
+        /// git user name
+        name: String,
+    },
 }
 
 fn init_db() -> Result<Connection> {
