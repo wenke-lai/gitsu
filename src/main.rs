@@ -4,8 +4,8 @@ use rusqlite::{params, Connection};
 use std::process::Command;
 
 #[derive(Parser)]
-#[command(name = "git_user_manager")]
-#[command(about = "管理多個 Git 使用者設定")]
+#[command(name = "gitsu")]
+#[command(about = "Git User management")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -13,23 +13,15 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// 創建新的 Git 使用者
     Create {
-        /// 使用者名稱
         name: String,
-        /// 電子郵件
         email: String,
     },
-    /// 切換到指定的 Git 使用者
+    List,
     Su {
-        /// 使用者名稱
         name: String,
     },
-    /// 列出所有 Git 使用者
-    List,
-    /// 刪除指定的 Git 使用者
     Delete {
-        /// 使用者名稱
         name: String,
     },
 }
@@ -51,7 +43,7 @@ fn create_user(conn: &Connection, name: &str, email: &str) -> Result<()> {
         "INSERT INTO users (name, email) VALUES (?1, ?2)",
         params![name, email],
     )?;
-    println!("使用者建立成功: {} ({})", name, email);
+    println!("create user success: {} <{}>", name, email);
     Ok(())
 }
 
@@ -62,19 +54,19 @@ fn switch_user(conn: &Connection, name: &str) -> Result<()> {
             params![name],
             |row| row.get(0),
         )
-        .context("找不到指定的使用者")?;
+        .context("user not found")?;
 
     Command::new("git")
         .args(["config", "user.name", name])
         .status()
-        .context("無法設定 git user.name")?;
+        .context("`git config user.name` failed")?;
 
     Command::new("git")
         .args(["config", "user.email", &email])
         .status()
-        .context("無法設定 git user.email")?;
+        .context("`git config user.email` failed")?;
 
-    println!("已切換到使用者: {} ({})", name, email);
+    println!("user switched: {} <{}>", name, email);
     Ok(())
 }
 
@@ -84,10 +76,10 @@ fn list_users(conn: &Connection) -> Result<()> {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
     })?;
 
-    println!("已儲存的使用者：");
+    println!("Users:");
     for user in users {
         let (name, email) = user?;
-        println!("- {} ({})", name, email);
+        println!("- {} <{}>", name, email);
     }
     Ok(())
 }
@@ -95,9 +87,9 @@ fn list_users(conn: &Connection) -> Result<()> {
 fn delete_user(conn: &Connection, name: &str) -> Result<()> {
     let rows = conn.execute("DELETE FROM users WHERE name = ?1", params![name])?;
     if rows > 0 {
-        println!("已刪除使用者: {}", name);
+        println!("user deleted: {} <{}>", name, email);
     } else {
-        println!("找不到使用者: {}", name);
+        println!("user not found: {}", name);
     }
     Ok(())
 }
@@ -108,8 +100,8 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Create { name, email } => create_user(&conn, &name, &email)?,
-        Commands::Su { name } => switch_user(&conn, &name)?,
         Commands::List => list_users(&conn)?,
+        Commands::Su { name } => switch_user(&conn, &name)?,
         Commands::Delete { name } => delete_user(&conn, &name)?,
     }
 
