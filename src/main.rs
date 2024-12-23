@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use dirs::home_dir;
 use rusqlite::{params, Connection};
 use std::process::Command;
 
@@ -13,21 +14,19 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Create {
-        name: String,
-        email: String,
-    },
+    Create { name: String, email: String },
     List,
-    Su {
-        name: String,
-    },
-    Delete {
-        name: String,
-    },
+    Su { name: String },
+    Delete { name: String },
 }
 
 fn init_db() -> Result<Connection> {
-    let conn = Connection::open("git_users.sqlite")?;
+    let db_path = home_dir().unwrap().join(".gitsu").join("db.sqlite");
+    if let Some(dir) = db_path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+
+    let conn: Connection = Connection::open(db_path)?;
     conn.execute(
         "CREATE TABLE IF NOT EXISTS users (
             name TEXT PRIMARY KEY,
@@ -87,7 +86,7 @@ fn list_users(conn: &Connection) -> Result<()> {
 fn delete_user(conn: &Connection, name: &str) -> Result<()> {
     let rows = conn.execute("DELETE FROM users WHERE name = ?1", params![name])?;
     if rows > 0 {
-        println!("user deleted: {} <{}>", name, email);
+        println!("user deleted: {}", name);
     } else {
         println!("user not found: {}", name);
     }
